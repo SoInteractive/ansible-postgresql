@@ -3,6 +3,7 @@
   shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'SELECT pg_is_in_recovery()';"
   register: status
   changed_when: false
+
   until: status.rc == 0
   retries: 3
 
@@ -20,7 +21,7 @@
     leader_node: "{{ inventory_hostname }}"
 
 - name: create databases
-  run_once: true
+  ignore_errors: yes
   postgresql_db:
     name: "{{ item.value.db }}"
     login_host: "{{ hostvars[leader_node]['ansible_' + system_interface]['ipv4']['address'] }}"
@@ -28,9 +29,10 @@
     login_password: "{{ postgresql_admin.pass }}"
   with_dict:
   - "{{ postgresql_users }}"
+  when: "inventory_hostname == leader_node"
 
 - name: create users
-  run_once: true
+  ignore_errors: yes
   postgresql_user:
     name: "{{ item.key }}"
     password: "{{ item.value.pass }}"
@@ -40,3 +42,4 @@
     login_password: "{{ postgresql_admin.pass }}"
   with_dict:
   - "{{ postgresql_users }}"
+  when: "inventory_hostname == leader_node"
