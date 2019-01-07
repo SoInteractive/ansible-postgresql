@@ -1,0 +1,73 @@
+scope: cluster
+name: {{ inventory_hostname }}
+
+restapi:
+  listen: {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }}:8008
+  connect_address: {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }}:8008
+
+etcd:
+  host: {{ hostvars[groups['postgresql'][0]]['ansible_' + system_interface]['ipv4']['address'] }}:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        wal_keep_segments: 8
+        max_wal_senders: 5
+        max_replication_slots: 5
+        checkpoint_timeout: 30
+
+  initdb:
+  - encoding: UTF8
+  - data-checksums 
+
+  pg_hba:
+  - host replication repl 127.0.0.1/32 md5
+{% for host in groups['postgresql'] %}
+  - host replication {{ postgresql_replication.user }} {{ hostvars[host]['ansible_' + system_interface]['ipv4']['address'] }}/0 md5
+{% endfor %}
+  - host all all 0.0.0.0/0 md5 
+
+  users:
+    {{ postgresql_admin.user }}:
+      password: {{ postgresql_admin.pass }}
+      options:
+        - createrole
+        - createdb
+# {% for user in postgresql_users.keys() %}
+#   {% for value in postgresql_users.values() %}
+#   {{ user }}:  
+#       password: {{ value.pass }}
+#       options:
+#         - createdb
+#   {% endfor %}
+# {% endfor %}
+
+postgresql:
+  listen: {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }}:5432
+  connect_address: {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }}:5432
+  data_dir: {{ data_dir }}
+  bin_dir: /usr/lib/postgresql/{{ postgresql_version }}/bin
+  authentication:
+    replication:
+      username: {{ postgresql_replication.user }}
+      password: {{ postgresql_replication.pass }}
+    superuser:
+      username: {{ postgresql_admin.user }}
+      password: {{ postgresql_admin.pass }}
+  parameters:
+    unix_socket_directories: '.'
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false

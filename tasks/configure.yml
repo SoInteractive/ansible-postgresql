@@ -1,0 +1,61 @@
+---
+- name: configure postgresql
+  template:
+    src: "{{ playbook_dir }}/../templates/postgresql.conf.j2"
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+
+- name: configure pg_hba
+  template:
+    src: "{{ playbook_dir }}/../templates/pg_hba.conf.j2"
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+
+- name: configure etcd
+  template:
+    src: "{{ playbook_dir }}/../templates/etcd.j2"
+    dest: /etc/default/etcd
+  when: "inventory_hostname == groups['postgresql'][0]"
+  notify:
+    - restart etcd
+
+- meta: flush_handlers
+
+- name: generate locale
+  locale_gen:
+    name: "{{ locale }}"
+    state: present
+
+- name: export locale env
+  become: yes
+  lineinfile:
+    dest: /etc/environment
+    line: LC_ALL="en_US.UTF-8"
+
+- name: create data directory
+  file:
+    path: "{{ data_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: 0700
+    recurse: yes
+  changed_when: false
+
+- name: configure patroni
+  template:
+    src: "{{ playbook_dir }}/../templates/patroni.yml.j2"
+    dest: /etc/patroni.yml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: copy patroni systemd service file
+  template:
+    src: "{{ playbook_dir }}/../templates/patroni.service.j2"
+    dest: /etc/systemd/system/patroni.service
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - start postgres cluster
+
+- meta: flush_handlers

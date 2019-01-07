@@ -1,0 +1,25 @@
+---
+- name: check cluster
+  command: "patronictl -d etcd://127.0.0.1:2379 list cluster"
+  when: "inventory_hostname == groups['postgresql'][0]"
+  changed_when: false
+  register: status
+
+- debug:
+    var: status
+
+- name: test cluster - create database on leader
+  shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'CREATE DATABASE test';"
+  changed_when: false
+  run_once: true
+  when: "inventory_hostname == leader_node"
+
+- name: test cluster - check if database exists on all nodes
+  shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c \"SELECT datname FROM pg_catalog.pg_database WHERE datname='test'\";"
+  changed_when: false
+
+- name: test cluster - drop database on leader
+  shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'DROP DATABASE test';"
+  run_once: true
+  changed_when: false
+  when: "inventory_hostname == leader_node"

@@ -1,0 +1,42 @@
+---
+- name: get node master
+  shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'SELECT pg_is_in_recovery()';"
+  register: status
+  changed_when: false
+  until: status.rc == 0
+  retries: 3
+
+- name: set stdout var
+  set_fact:
+    node_status: "{{ status.stdout_lines[2] }}"
+
+- name: set leader node var
+  set_fact:
+    leader_node: "{{ inventory_hostname }}"
+  when: status.stdout_lines[2] | search("f")
+
+- name: set leader node var globally
+  set_fact:
+    leader_node: "{{ inventory_hostname }}"
+
+- name: create databases
+  run_once: true
+  postgresql_db:
+    name: "{{ item.value.db }}"
+    login_host: "{{ hostvars[leader_node]['ansible_' + system_interface]['ipv4']['address'] }}"
+    login_user: "{{ postgresql_admin.user }}"
+    login_password: "{{ postgresql_admin.pass }}"
+  with_dict:
+  - "{{ postgresql_users }}"
+
+- name: create users
+  run_once: true
+  postgresql_user:
+    name: "{{ item.key }}"
+    password: "{{ item.value.pass }}"
+    db: "{{ item.value.db }}"
+    login_host: "{{ hostvars[leader_node]['ansible_' + system_interface]['ipv4']['address'] }}"
+    login_user: "{{ postgresql_admin.user }}"
+    login_password: "{{ postgresql_admin.pass }}"
+  with_dict:
+  - "{{ postgresql_users }}"

@@ -1,0 +1,37 @@
+---
+- name: add postgresql repository key
+  apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+- name: add postgresql repository
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+    state: present
+    update_cache: yes
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+- name: install postgresql
+  become: yes
+  package:
+    name: "postgresql-{{ postgresql_version }}"
+    state: present
+
+- name: install pip dependencies
+  become: yes
+  pip:
+    name: "{{ requirements }}"
+    state: present
+
+- name: install etcd
+  become: yes
+  package:
+    name: etcd
+    state: present
+  when: "inventory_hostname == groups['postgresql'][0]"
+
+- name: install patroni
+  become: yes
+  pip:
+    name: patroni

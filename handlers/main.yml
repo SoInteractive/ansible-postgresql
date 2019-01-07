@@ -1,0 +1,14 @@
+---
+- name: restart etcd
+  systemd:
+    name: etcd
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+
+- name: start postgres cluster
+  systemd:
+    name: patroni.service
+    state: restarted
+    daemon_reload: yes
+  retries: 3
