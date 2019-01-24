@@ -13,25 +13,35 @@
   when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
 
 - name: install postgresql
-  become: yes
   package:
     name: "postgresql-{{ postgresql_version }}"
     state: present
 
-- name: install pip dependencies
-  become: yes
-  pip:
-    name: "{{ requirements }}"
-    state: present
-
 - name: install etcd
-  become: yes
   package:
     name: etcd
     state: present
   when: "inventory_hostname == groups['postgresql'][0]"
 
-- name: install patroni
+- name: install python,python-pip
   become: yes
+  package:
+    name:
+      - python
+      - python-pip
+    state: present
+
+- name: install pip dependencies
+  become_user: "{{ ansible_user }}"
   pip:
-    name: patroni
+    name: "{{ requirements }}"
+    state: present
+    extra_args: --ignore-installed
+
+- name: install patroni
+  become_user: "{{ ansible_user }}"
+  pip:
+    name: patroni[etcd]
+    state: present
+    extra_args: --ignore-installed
+  register: status

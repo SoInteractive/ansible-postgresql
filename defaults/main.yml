@@ -1,4 +1,6 @@
 ---
+ansible_user: user
+
 postgresql_version: 10
 
 postgresql_replication:
@@ -16,6 +18,9 @@ postgresql_users:
 
 data_dir: /data/db
 
+patroni_location: /usr/local/bin/patroni
+patronictl_location: /usr/local/bin/patronictl
+
 system_interface: eth0
 
 locale: en_US.UTF-8
@@ -25,7 +30,7 @@ requirements:
   - virtualenv
   - urllib3>=1.19.1,!=1.21
   - boto
-  - psycopg2-binary
+  - psycopg2>=2.5.4
   - PyYAML
   - requests
   - six >= 1.7
@@ -36,5 +41,6 @@ requirements:
   - prettytable>=0.7
   - tzlocal
   - python-dateutil
-  - psutil
+  - psutil>=2.0.0
   - cdiff
+  - psycopg2-binary

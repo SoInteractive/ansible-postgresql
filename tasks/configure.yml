@@ -1,17 +1,17 @@
 ---
 - name: configure postgresql
   template:
-    src: "{{ playbook_dir }}/../templates/postgresql.conf.j2"
+    src: postgresql.conf.j2
     dest: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
 
 - name: configure pg_hba
   template:
-    src: "{{ playbook_dir }}/../templates/pg_hba.conf.j2"
+    src: pg_hba.conf.j2
     dest: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
 
 - name: configure etcd
   template:
-    src: "{{ playbook_dir }}/../templates/etcd.j2"
+    src: etcd.j2
     dest: /etc/default/etcd
   when: "inventory_hostname == groups['postgresql'][0]"
   notify:
@@ -34,15 +34,26 @@
   file:
     path: "{{ data_dir }}"
     state: directory
-    owner: postgres
-    group: postgres
+    owner: soi
+    group: soi
     mode: 0700
     recurse: yes
   changed_when: false
 
+- name: locate patroni
+  find:
+    paths: /
+    patterns: "patroni"
+    recurse: yes
+  register: location
+
+- name: set location var
+  set_fact:
+    patroni_location: "{{ location.files[0].path }}"
+
 - name: configure patroni
   template:
-    src: "{{ playbook_dir }}/../templates/patroni.yml.j2"
+    src: patroni.yml.j2
     dest: /etc/patroni.yml
     owner: root
     group: root
@@ -50,12 +61,15 @@
 
 - name: copy patroni systemd service file
   template:
-    src: "{{ playbook_dir }}/../templates/patroni.service.j2"
+    src: patroni.service.j2
     dest: /etc/systemd/system/patroni.service
     owner: root
     group: root
     mode: 0644
   notify:
-    - start postgres cluster
+
+-  name: trigger patroni restart
+   command: /bin/true
+   notify: start postgres cluster
 
 - meta: flush_handlers

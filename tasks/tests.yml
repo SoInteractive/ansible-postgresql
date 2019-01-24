@@ -1,6 +1,18 @@
 ---
+- name: locate patronictl
+  find:
+    paths: /
+    patterns: "patronictl"
+    recurse: yes
+  register: locationctl
+
+- name: set location var
+  set_fact:
+    patronictl_location: "{{ locationctl.files[0].path }}"
+
 - name: check cluster
-  command: "patronictl -d etcd://127.0.0.1:2379 list cluster"
+  become_user: "{{ ansible_user }}"
+  shell: "{{ patronictl_location }} -d etcd://127.0.0.1:2379 list cluster"
   when: "inventory_hostname == groups['postgresql'][0]"
   changed_when: false
   register: status
@@ -9,6 +21,7 @@
     var: status
 
 - name: get node master
+  become_user: "{{ ansible_user }}"
   shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'SELECT pg_is_in_recovery()';"
   register: status
   changed_when: false
@@ -30,7 +43,7 @@
     leader_node: "{{ inventory_hostname }}"
 
 - name: test cluster - create database on leader
-  run_once: true
+  ignore_errors: yes
   shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'CREATE DATABASE test';"
   changed_when: false
   when: "inventory_hostname == leader_node"
@@ -40,7 +53,7 @@
   changed_when: false
 
 - name: test cluster - drop database on leader
-  run_once: true
+  ignore_errors: yes
   shell: "PGPASSWORD={{ postgresql_admin.pass }} psql -U {{ postgresql_admin.user }} -h {{ hostvars[inventory_hostname]['ansible_' + system_interface]['ipv4']['address'] }} -c 'DROP DATABASE test';"
   changed_when: false
   when: "inventory_hostname == leader_node"

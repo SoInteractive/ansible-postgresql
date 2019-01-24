@@ -21,6 +21,7 @@
     leader_node: "{{ inventory_hostname }}"
 
 - name: create databases
+  become_user: "{{ ansible_user }}"
   ignore_errors: yes
   postgresql_db:
     name: "{{ item.value.db }}"
@@ -32,6 +33,7 @@
   when: "inventory_hostname == leader_node"
 
 - name: create users
+  become_user: "{{ ansible_user }}"
   ignore_errors: yes
   postgresql_user:
     name: "{{ item.key }}"

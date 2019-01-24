@@ -5,10 +5,10 @@ After=syslog.target network.target
 [Service]
 Type=simple
 
-User=postgres
-Group=postgres
+User={{ ansible_user }}
+Group={{ ansible_user }}
 
-ExecStart=/usr/local/bin/patroni /etc/patroni.yml
+ExecStart={{ patroni_location }} /etc/patroni.yml
 
 Restart=always
 
